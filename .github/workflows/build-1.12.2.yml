@@ -22,5 +22,5 @@ jobs:
           java-version: '8'
       - name: Make Gradle wrapper executable
         run: chmod +x gradlew
-      - name: Build with ForgeGradle
-        run: ./gradlew --no-daemon setupCIWorkspace build
+      - name: Build with ForgeGradle 3
+        run: ./gradlew --no-daemon clean build
