@@ -60,8 +60,8 @@ public final class EntityScaleHooks {
         if (data == null) return;
 
         float baseScale = safeScale(data.getScale(BASE));
-        float widthScale = safeScale(data.getScale(WIDTH)) * baseScale;
-        float heightScale = safeScale(data.getScale(HEIGHT)) * baseScale;
+        float widthScale = safeScale(data.getScale(WIDTH)) * safeScale(data.getScale(HITBOX_WIDTH)) * baseScale;
+        float heightScale = safeScale(data.getScale(HEIGHT)) * safeScale(data.getScale(HITBOX_HEIGHT)) * baseScale;
         synchronized (APPLIED_SCALE) {
             float[] previous = APPLIED_SCALE.get(entity);
             if (previous != null && Float.compare(previous[0], widthScale) == 0
