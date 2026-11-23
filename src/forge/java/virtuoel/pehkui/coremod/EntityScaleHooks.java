@@ -1,5 +1,6 @@
 package virtuoel.pehkui.coremod;
 
+import java.lang.reflect.Method;
 import java.util.Map;
 import java.util.WeakHashMap;
 import net.minecraft.entity.Entity;
@@ -12,6 +13,7 @@ public final class EntityScaleHooks {
     private static final ResourceLocation BASE = new ResourceLocation("pehkui", "base");
     private static final ResourceLocation WIDTH = new ResourceLocation("pehkui", "width");
     private static final ResourceLocation HEIGHT = new ResourceLocation("pehkui", "height");
+    private static final Method SET_SIZE = findSetSize();
     private static final Map<Entity, float[]> BASE_SIZE = new WeakHashMap<Entity, float[]>();
     private static final Map<Entity, float[]> APPLIED_SCALE = new WeakHashMap<Entity, float[]>();
 
@@ -63,7 +65,26 @@ public final class EntityScaleHooks {
             }
             APPLIED_SCALE.put(entity, new float[] {widthScale, heightScale});
         }
-        entity.setSize(base[0], base[1]);
+        try {
+            SET_SIZE.invoke(entity, base[0], base[1]);
+        } catch (ReflectiveOperationException exception) {
+            throw new IllegalStateException("Unable to refresh entity dimensions", exception);
+        }
+    }
+
+    private static Method findSetSize() {
+        try {
+            Method method;
+            try {
+                method = Entity.class.getDeclaredMethod("setSize", float.class, float.class);
+            } catch (NoSuchMethodException ignored) {
+                method = Entity.class.getDeclaredMethod("func_70105_a", float.class, float.class);
+            }
+            method.setAccessible(true);
+            return method;
+        } catch (ReflectiveOperationException exception) {
+            throw new ExceptionInInitializerError(exception);
+        }
     }
 
     private static float safeScale(float value) {
