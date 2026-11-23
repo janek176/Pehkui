@@ -13,6 +13,9 @@ public final class EntityScaleHooks {
     private static final ResourceLocation BASE = new ResourceLocation("pehkui", "base");
     private static final ResourceLocation WIDTH = new ResourceLocation("pehkui", "width");
     private static final ResourceLocation HEIGHT = new ResourceLocation("pehkui", "height");
+    private static final ResourceLocation EYE_HEIGHT = new ResourceLocation("pehkui", "eye_height");
+    private static final ResourceLocation MODEL_WIDTH = new ResourceLocation("pehkui", "model_width");
+    private static final ResourceLocation MODEL_HEIGHT = new ResourceLocation("pehkui", "model_height");
     private static final Method SET_SIZE = findSetSize();
     private static final Map<Entity, float[]> BASE_SIZE = new WeakHashMap<Entity, float[]>();
     private static final Map<Entity, float[]> APPLIED_SCALE = new WeakHashMap<Entity, float[]>();
@@ -70,6 +73,22 @@ public final class EntityScaleHooks {
         } catch (ReflectiveOperationException exception) {
             throw new IllegalStateException("Unable to refresh entity dimensions", exception);
         }
+    }
+
+    /** Applies the independent eye-height factor to vanilla's height-derived eye position. */
+    public static float transformEyeHeight(Entity entity, float eyeHeight) {
+        IScaleData data = ScaleDataCapability.get(entity);
+        return data == null ? eyeHeight : eyeHeight * safeScale(data.getScale(EYE_HEIGHT));
+    }
+
+    /** Returns model width and height, including the general and axis scale factors. */
+    public static float[] getModelScale(Entity entity) {
+        IScaleData data = ScaleDataCapability.get(entity);
+        if (data == null) return new float[] {1.0F, 1.0F};
+        float base = safeScale(data.getScale(BASE));
+        float width = base * safeScale(data.getScale(WIDTH)) * safeScale(data.getScale(MODEL_WIDTH));
+        float height = base * safeScale(data.getScale(HEIGHT)) * safeScale(data.getScale(MODEL_HEIGHT));
+        return new float[] {width, height};
     }
 
     private static Method findSetSize() {
