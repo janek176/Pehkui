@@ -6,6 +6,7 @@ import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLServerStartingEvent;
 import org.apache.logging.log4j.Logger;
 import virtuoel.pehkui.api.ScaleTypes;
+import virtuoel.pehkui.capability.ScaleDataCapability;
 import virtuoel.pehkui.network.PehkuiNetwork;
 
 @Mod(
@@ -28,12 +29,13 @@ public final class Pehkui {
     @Mod.EventHandler
     public void preInit(FMLPreInitializationEvent event) {
         logger = event.getModLog();
+        ScaleTypes.registerDefaults();
+        ScaleDataCapability.register();
         PehkuiNetwork.init();
     }
 
     @Mod.EventHandler
     public void init(FMLInitializationEvent event) {
-        ScaleTypes.registerDefaults();
     }
 
     @Mod.EventHandler
