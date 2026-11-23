@@ -1,16 +1,26 @@
 package virtuoel.pehkui.capability;
 
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.EnumFacing;
+import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.common.capabilities.CapabilityInject;
 import net.minecraftforge.common.capabilities.CapabilityManager;
 import net.minecraftforge.common.capabilities.ICapabilitySerializable;
-import net.minecraftforge.common.util.INBTSerializable;
+import net.minecraftforge.event.AttachCapabilitiesEvent;
+import net.minecraftforge.event.entity.player.PlayerEvent;
+import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
+import virtuoel.pehkui.Pehkui;
 import virtuoel.pehkui.api.IScaleData;
 import virtuoel.pehkui.api.ScaleData;
 
+@Mod.EventBusSubscriber(modid = Pehkui.MOD_ID)
 public final class ScaleDataCapability {
+    private static final ResourceLocation KEY = new ResourceLocation(Pehkui.MOD_ID, "scale_data");
+
     @CapabilityInject(IScaleData.class)
     public static Capability<IScaleData> CAPABILITY = null;
 
@@ -28,6 +38,27 @@ public final class ScaleDataCapability {
                 if (nbt instanceof NBTTagCompound) instance.deserializeNBT((NBTTagCompound) nbt);
             }
         }, ScaleData::new);
+    }
+
+    @SubscribeEvent
+    public static void attach(AttachCapabilitiesEvent<Entity> event) {
+        event.addCapability(KEY, new Provider());
+    }
+
+    @SubscribeEvent
+    public static void clonePlayer(PlayerEvent.Clone event) {
+        if (!event.isWasDeath()) return;
+        EntityPlayer original = event.getOriginal();
+        EntityPlayer replacement = event.getEntityPlayer();
+        if (original.hasCapability(CAPABILITY, null) && replacement.hasCapability(CAPABILITY, null)) {
+            replacement.getCapability(CAPABILITY, null).deserializeNBT(
+                original.getCapability(CAPABILITY, null).serializeNBT()
+            );
+        }
+    }
+
+    public static IScaleData get(Entity entity) {
+        return entity != null && CAPABILITY != null ? entity.getCapability(CAPABILITY, null) : null;
     }
 
     public static final class Provider implements ICapabilitySerializable<NBTTagCompound> {
