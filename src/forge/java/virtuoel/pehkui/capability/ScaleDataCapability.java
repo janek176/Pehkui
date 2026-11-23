@@ -14,7 +14,7 @@ import net.minecraftforge.common.capabilities.CapabilityManager;
 import net.minecraftforge.common.capabilities.ICapabilitySerializable;
 import net.minecraftforge.event.AttachCapabilitiesEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
-import net.minecraftforge.event.entity.living.LivingEvent;
+import net.minecraftforge.fml.common.gameevent.TickEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import virtuoel.pehkui.Pehkui;
@@ -53,19 +53,20 @@ public final class ScaleDataCapability {
     }
 
     @SubscribeEvent
-    public static void livingUpdate(LivingEvent.LivingUpdateEvent event) {
-        Entity entity = event.getEntityLiving();
-        IScaleData data = get(entity);
-        if (data == null) return;
-        data.tick();
-        if (entity.world.isRemote) return;
-        NBTTagCompound snapshot = data.serializeNBT();
-        NBTTagCompound previous = LAST_SYNC.get(entity);
-        if (!snapshot.equals(previous)) {
-            LAST_SYNC.put(entity, snapshot.copy());
-            PehkuiNetwork.syncTracking(entity);
-            if (entity instanceof EntityPlayerMP) {
-                PehkuiNetwork.syncTo(entity, (EntityPlayerMP) entity);
+    public static void worldTick(TickEvent.WorldTickEvent event) {
+        if (event.phase != TickEvent.Phase.END || event.world.isRemote) return;
+        for (Entity entity : event.world.loadedEntityList) {
+            IScaleData data = get(entity);
+            if (data == null) continue;
+            data.tick();
+            NBTTagCompound snapshot = data.serializeNBT();
+            NBTTagCompound previous = LAST_SYNC.get(entity);
+            if (!snapshot.equals(previous)) {
+                LAST_SYNC.put(entity, snapshot.copy());
+                PehkuiNetwork.syncTracking(entity);
+                if (entity instanceof EntityPlayerMP) {
+                    PehkuiNetwork.syncTo(entity, (EntityPlayerMP) entity);
+                }
             }
         }
     }
