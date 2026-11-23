@@ -12,48 +12,100 @@ import org.objectweb.asm.tree.VarInsnNode;
 import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.MethodNode;
 
-/**
- * Adds scale-aware dimensions to Entity#setSize in both development and
- * production environments. The hook only changes the two dimensions passed
- * to vanilla; vanilla remains responsible for rebuilding the bounding box.
- */
+/** Adds scale-aware hitbox, eye-height and living-model hooks. */
 public final class EntityScaleTransformer implements IClassTransformer {
     private static final String ENTITY = "net.minecraft.entity.Entity";
+    private static final String LIVING_RENDERER = "net.minecraft.client.renderer.entity.RenderLivingBase";
     private static final String HOOKS = "virtuoel/pehkui/coremod/EntityScaleHooks";
+    private static final String ENTITY_DESC = "Lnet/minecraft/entity/Entity;";
 
     @Override
     public byte[] transform(String name, String transformedName, byte[] basicClass) {
-        if (basicClass == null || !ENTITY.equals(transformedName)) return basicClass;
+        if (basicClass == null) return basicClass;
+        if (!ENTITY.equals(transformedName) && !LIVING_RENDERER.equals(transformedName)) return basicClass;
 
         ClassNode node = new ClassNode();
         new ClassReader(basicClass).accept(node, 0);
         boolean changed = false;
 
-        for (MethodNode method : node.methods) {
-            if (("setSize".equals(method.name) || "func_70105_a".equals(method.name))
-                && "(FF)V".equals(method.desc)) {
-                int dimensionsLocal = method.maxLocals;
-                InsnList hook = new InsnList();
-                hook.add(new VarInsnNode(Opcodes.ALOAD, 0));
-                hook.add(new VarInsnNode(Opcodes.FLOAD, 1));
-                hook.add(new VarInsnNode(Opcodes.FLOAD, 2));
-                hook.add(new MethodInsnNode(
-                    Opcodes.INVOKESTATIC, HOOKS, "transformSize",
-                    "(Lnet/minecraft/entity/Entity;FF)[F", false
-                ));
-                hook.add(new VarInsnNode(Opcodes.ASTORE, dimensionsLocal));
-                hook.add(new VarInsnNode(Opcodes.ALOAD, dimensionsLocal));
-                hook.add(new InsnNode(Opcodes.ICONST_0));
-                hook.add(new InsnNode(Opcodes.FALOAD));
-                hook.add(new VarInsnNode(Opcodes.FSTORE, 1));
-                hook.add(new VarInsnNode(Opcodes.ALOAD, dimensionsLocal));
-                hook.add(new InsnNode(Opcodes.ICONST_1));
-                hook.add(new InsnNode(Opcodes.FALOAD));
-                hook.add(new VarInsnNode(Opcodes.FSTORE, 2));
-                method.instructions.insert(hook);
-                method.maxLocals = dimensionsLocal + 1;
-                changed = true;
-                break;
+        if (ENTITY.equals(transformedName)) {
+            for (MethodNode method : node.methods) {
+                if (("setSize".equals(method.name) || "func_70105_a".equals(method.name))
+                    && "(FF)V".equals(method.desc)) {
+                    int dimensionsLocal = method.maxLocals;
+                    InsnList hook = new InsnList();
+                    hook.add(new VarInsnNode(Opcodes.ALOAD, 0));
+                    hook.add(new VarInsnNode(Opcodes.FLOAD, 1));
+                    hook.add(new VarInsnNode(Opcodes.FLOAD, 2));
+                    hook.add(new MethodInsnNode(Opcodes.INVOKESTATIC, HOOKS, "transformSize",
+                        "(" + ENTITY_DESC + "FF)[F", false));
+                    hook.add(new VarInsnNode(Opcodes.ASTORE, dimensionsLocal));
+                    hook.add(new VarInsnNode(Opcodes.ALOAD, dimensionsLocal));
+                    hook.add(new InsnNode(Opcodes.ICONST_0));
+                    hook.add(new InsnNode(Opcodes.FALOAD));
+                    hook.add(new VarInsnNode(Opcodes.FSTORE, 1));
+                    hook.add(new VarInsnNode(Opcodes.ALOAD, dimensionsLocal));
+                    hook.add(new InsnNode(Opcodes.ICONST_1));
+                    hook.add(new InsnNode(Opcodes.FALOAD));
+                    hook.add(new VarInsnNode(Opcodes.FSTORE, 2));
+                    method.instructions.insert(hook);
+                    method.maxLocals = dimensionsLocal + 1;
+                    changed = true;
+                }
+
+                if (("getEyeHeight".equals(method.name) || "func_70047_e".equals(method.name))
+                    && "()F".equals(method.desc)) {
+                    int valueLocal = method.maxLocals++;
+                    for (AbstractInsnNode instruction = method.instructions.getFirst();
+                         instruction != null; instruction = instruction.getNext()) {
+                        if (instruction.getOpcode() == Opcodes.FRETURN) {
+                            InsnList hook = new InsnList();
+                            hook.add(new VarInsnNode(Opcodes.FSTORE, valueLocal));
+                            hook.add(new VarInsnNode(Opcodes.ALOAD, 0));
+                            hook.add(new VarInsnNode(Opcodes.FLOAD, valueLocal));
+                            hook.add(new MethodInsnNode(Opcodes.INVOKESTATIC, HOOKS, "transformEyeHeight",
+                                "(" + ENTITY_DESC + "F)F", false));
+                            method.instructions.insertBefore(instruction, hook);
+                            changed = true;
+                        }
+                    }
+                }
+            }
+        } else {
+            for (MethodNode method : node.methods) {
+                if (!"doRender".equals(method.name) || !method.desc.startsWith(
+                    "(Lnet/minecraft/entity/EntityLivingBase;DDDFF)V")) continue;
+
+                for (AbstractInsnNode instruction = method.instructions.getFirst();
+                     instruction != null; instruction = instruction.getNext()) {
+                    if (instruction instanceof MethodInsnNode) {
+                        MethodInsnNode call = (MethodInsnNode) instruction;
+                        if ("prepareScale".equals(call.name) && call.desc.endsWith(")F")) {
+                            int scaleArrayLocal = method.maxLocals;
+                            int renderScaleLocal = scaleArrayLocal + 1;
+                            InsnList hook = new InsnList();
+                            hook.add(new VarInsnNode(Opcodes.FSTORE, renderScaleLocal));
+                            hook.add(new VarInsnNode(Opcodes.ALOAD, 1));
+                            hook.add(new MethodInsnNode(Opcodes.INVOKESTATIC, HOOKS, "getModelScale",
+                                "(" + ENTITY_DESC + ")[F", false));
+                            hook.add(new VarInsnNode(Opcodes.ASTORE, scaleArrayLocal));
+                            hook.add(new VarInsnNode(Opcodes.ALOAD, scaleArrayLocal));
+                            hook.add(new InsnNode(Opcodes.ICONST_0));
+                            hook.add(new InsnNode(Opcodes.FALOAD));
+                            hook.add(new VarInsnNode(Opcodes.ALOAD, scaleArrayLocal));
+                            hook.add(new InsnNode(Opcodes.ICONST_1));
+                            hook.add(new InsnNode(Opcodes.FALOAD));
+                            hook.add(new InsnNode(Opcodes.FCONST_1));
+                            hook.add(new MethodInsnNode(Opcodes.INVOKESTATIC,
+                                "net/minecraft/client/renderer/GlStateManager", "scale", "(FFF)V", false));
+                            hook.add(new VarInsnNode(Opcodes.FLOAD, renderScaleLocal));
+                            method.instructions.insert(instruction, hook);
+                            method.maxLocals = renderScaleLocal + 1;
+                            changed = true;
+                            break;
+                        }
+                    }
+                }
             }
         }
 
