@@ -9,6 +9,7 @@ import virtuoel.pehkui.capability.ScaleDataCapability;
 
 /** Runtime bridge called by the Entity#setSize transformer. */
 public final class EntityScaleHooks {
+    private static final ResourceLocation BASE = new ResourceLocation("pehkui", "base");
     private static final ResourceLocation WIDTH = new ResourceLocation("pehkui", "width");
     private static final ResourceLocation HEIGHT = new ResourceLocation("pehkui", "height");
     private static final Map<Entity, float[]> BASE_SIZE = new WeakHashMap<Entity, float[]>();
@@ -26,8 +27,9 @@ public final class EntityScaleHooks {
             return new float[] {width, height};
         }
 
-        float widthScale = safeScale(data.getScale(WIDTH));
-        float heightScale = safeScale(data.getScale(HEIGHT));
+        float baseScale = safeScale(data.getScale(BASE));
+        float widthScale = safeScale(data.getScale(WIDTH)) * baseScale;
+        float heightScale = safeScale(data.getScale(HEIGHT)) * baseScale;
         synchronized (APPLIED_SCALE) {
             APPLIED_SCALE.put(entity, new float[] {widthScale, heightScale});
         }
@@ -50,8 +52,9 @@ public final class EntityScaleHooks {
         IScaleData data = ScaleDataCapability.get(entity);
         if (data == null) return;
 
-        float widthScale = safeScale(data.getScale(WIDTH));
-        float heightScale = safeScale(data.getScale(HEIGHT));
+        float baseScale = safeScale(data.getScale(BASE));
+        float widthScale = safeScale(data.getScale(WIDTH)) * baseScale;
+        float heightScale = safeScale(data.getScale(HEIGHT)) * baseScale;
         synchronized (APPLIED_SCALE) {
             float[] previous = APPLIED_SCALE.get(entity);
             if (previous != null && Float.compare(previous[0], widthScale) == 0
