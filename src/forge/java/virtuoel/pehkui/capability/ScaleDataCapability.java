@@ -62,6 +62,7 @@ public final class ScaleDataCapability {
             if (data == null) continue;
 
             data.tick();
+            EntityScaleHooks.refreshStepHeight(entity, data);
             EntityScaleHooks.refresh(entity);
 
             if (event.world.isRemote) continue;
