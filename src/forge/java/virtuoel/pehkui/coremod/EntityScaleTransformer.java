@@ -16,13 +16,14 @@ import org.objectweb.asm.tree.MethodNode;
 public final class EntityScaleTransformer implements IClassTransformer {
     private static final String ENTITY = "net.minecraft.entity.Entity";
     private static final String LIVING_RENDERER = "net.minecraft.client.renderer.entity.RenderLivingBase";
+    private static final String LIVING_BASE = "net.minecraft.entity.EntityLivingBase";
     private static final String HOOKS = "virtuoel/pehkui/coremod/EntityScaleHooks";
     private static final String ENTITY_DESC = "Lnet/minecraft/entity/Entity;";
 
     @Override
     public byte[] transform(String name, String transformedName, byte[] basicClass) {
         if (basicClass == null) return basicClass;
-        if (!ENTITY.equals(transformedName) && !LIVING_RENDERER.equals(transformedName)) return basicClass;
+        if (!ENTITY.equals(transformedName) && !LIVING_RENDERER.equals(transformedName) && !LIVING_BASE.equals(transformedName)) return basicClass;
 
         ClassNode node = new ClassNode();
         new ClassReader(basicClass).accept(node, 0);
@@ -64,6 +65,26 @@ public final class EntityScaleTransformer implements IClassTransformer {
                             hook.add(new VarInsnNode(Opcodes.ALOAD, 0));
                             hook.add(new VarInsnNode(Opcodes.FLOAD, valueLocal));
                             hook.add(new MethodInsnNode(Opcodes.INVOKESTATIC, HOOKS, "transformEyeHeight",
+                                "(" + ENTITY_DESC + "F)F", false));
+                            method.instructions.insertBefore(instruction, hook);
+                            changed = true;
+                        }
+                    }
+                }
+            }
+        } else if (LIVING_BASE.equals(transformedName)) {
+            for (MethodNode method : node.methods) {
+                if (("getJumpUpwardsMotion".equals(method.name) || "func_70664_aZ".equals(method.name))
+                    && "()F".equals(method.desc)) {
+                    int valueLocal = method.maxLocals++;
+                    for (AbstractInsnNode instruction = method.instructions.getFirst();
+                         instruction != null; instruction = instruction.getNext()) {
+                        if (instruction.getOpcode() == Opcodes.FRETURN) {
+                            InsnList hook = new InsnList();
+                            hook.add(new VarInsnNode(Opcodes.FSTORE, valueLocal));
+                            hook.add(new VarInsnNode(Opcodes.ALOAD, 0));
+                            hook.add(new VarInsnNode(Opcodes.FLOAD, valueLocal));
+                            hook.add(new MethodInsnNode(Opcodes.INVOKESTATIC, HOOKS, "transformJumpHeight",
                                 "(" + ENTITY_DESC + "F)F", false));
                             method.instructions.insertBefore(instruction, hook);
                             changed = true;
