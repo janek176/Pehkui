@@ -38,8 +38,6 @@ public final class EntityScaleHooks {
             return new float[] {width, height};
         }
 
-        refreshStepHeight(entity, data);
-
         float baseScale = safeScale(data.getScale(BASE));
         float widthScale = safeScale(data.getScale(WIDTH)) * safeScale(data.getScale(HITBOX_WIDTH)) * baseScale;
         float heightScale = safeScale(data.getScale(HEIGHT)) * safeScale(data.getScale(HITBOX_HEIGHT)) * baseScale;
