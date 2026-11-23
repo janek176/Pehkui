@@ -13,6 +13,8 @@ public final class EntityScaleHooks {
     private static final ResourceLocation BASE = new ResourceLocation("pehkui", "base");
     private static final ResourceLocation WIDTH = new ResourceLocation("pehkui", "width");
     private static final ResourceLocation HEIGHT = new ResourceLocation("pehkui", "height");
+    private static final ResourceLocation HITBOX_WIDTH = new ResourceLocation("pehkui", "hitbox_width");
+    private static final ResourceLocation HITBOX_HEIGHT = new ResourceLocation("pehkui", "hitbox_height");
     private static final ResourceLocation EYE_HEIGHT = new ResourceLocation("pehkui", "eye_height");
     private static final ResourceLocation MODEL_WIDTH = new ResourceLocation("pehkui", "model_width");
     private static final ResourceLocation MODEL_HEIGHT = new ResourceLocation("pehkui", "model_height");
@@ -33,8 +35,8 @@ public final class EntityScaleHooks {
         }
 
         float baseScale = safeScale(data.getScale(BASE));
-        float widthScale = safeScale(data.getScale(WIDTH)) * baseScale;
-        float heightScale = safeScale(data.getScale(HEIGHT)) * baseScale;
+        float widthScale = safeScale(data.getScale(WIDTH)) * safeScale(data.getScale(HITBOX_WIDTH)) * baseScale;
+        float heightScale = safeScale(data.getScale(HEIGHT)) * safeScale(data.getScale(HITBOX_HEIGHT)) * baseScale;
         synchronized (APPLIED_SCALE) {
             APPLIED_SCALE.put(entity, new float[] {widthScale, heightScale});
         }
