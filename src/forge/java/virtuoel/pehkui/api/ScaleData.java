@@ -47,12 +47,17 @@ public final class ScaleData implements IScaleData {
         Entry value = scales.get(id);
         if (value == null) return defaultScale(id);
         float delta = Math.max(0.0F, Math.min(1.0F, tickDelta));
-        return value.previous + (value.current - value.previous) * delta;
+        float raw = value.previous + (value.current - value.previous) * delta;
+        ScaleType type = type(id);
+        return type == null ? raw : type.applyModifiers(raw);
     }
 
     @Override
     public float getTargetScale(ResourceLocation id) {
-        return id == null ? 1.0F : entry(id).target;
+        if (id == null) return 1.0F;
+        float target = entry(id).target;
+        ScaleType type = type(id);
+        return type == null ? target : type.applyModifiers(target);
     }
 
     @Override
