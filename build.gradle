@@ -2,14 +2,14 @@ buildscript {
     repositories {
         mavenCentral()
         maven { url = "https://maven.minecraftforge.net" }
-        maven { url = "https://repo.spongepowered.org/repository/maven-public/" }
     }
     dependencies {
-        classpath 'net.minecraftforge.gradle:ForgeGradle:2.3-SNAPSHOT'
+        // Forge 1.12.2 publishes userdev3, which requires ForgeGradle 3+.
+        classpath 'net.minecraftforge.gradle:ForgeGradle:3.0.197'
     }
 }
 
-apply plugin: 'net.minecraftforge.gradle.forge'
+apply plugin: 'net.minecraftforge.gradle'
 apply plugin: 'eclipse'
 
 version = "1.12.2-forge-dev"
@@ -19,9 +19,16 @@ archivesBaseName = "pehkui"
 sourceCompatibility = targetCompatibility = JavaVersion.VERSION_1_8
 
 minecraft {
-    version = "1.12.2-14.23.5.2860"
-    runDir = "run"
-    mappings = "stable_39"
+    mappings channel: 'snapshot', version: '20171003-1.12'
+
+    runs {
+        client {
+            workingDirectory project.file('run')
+        }
+        server {
+            workingDirectory project.file('run')
+        }
+    }
 }
 
 repositories {
@@ -29,6 +36,7 @@ repositories {
 }
 
 dependencies {
+    minecraft 'net.minecraftforge:forge:1.12.2-14.23.5.2860'
 }
 
 sourceSets {
@@ -44,13 +52,5 @@ jar {
             'FMLCorePlugin': 'virtuoel.pehkui.coremod.PehkuiLoadingPlugin',
             'FMLCorePluginContainsFMLMod': 'true'
         )
-    }
-}
-
-processResources {
-    inputs.property "version", project.version
-    from(sourceSets.main.resources.srcDirs) {
-        include 'mcmod.info'
-        expand 'version': project.version
     }
 }
