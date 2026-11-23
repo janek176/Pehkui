@@ -18,9 +18,13 @@ public final class EntityScaleHooks {
     private static final ResourceLocation EYE_HEIGHT = new ResourceLocation("pehkui", "eye_height");
     private static final ResourceLocation MODEL_WIDTH = new ResourceLocation("pehkui", "model_width");
     private static final ResourceLocation MODEL_HEIGHT = new ResourceLocation("pehkui", "model_height");
+    private static final ResourceLocation STEP_HEIGHT = new ResourceLocation("pehkui", "step_height");
+    private static final ResourceLocation JUMP_HEIGHT = new ResourceLocation("pehkui", "jump_height");
     private static final Method SET_SIZE = findSetSize();
     private static final Map<Entity, float[]> BASE_SIZE = new WeakHashMap<Entity, float[]>();
     private static final Map<Entity, float[]> APPLIED_SCALE = new WeakHashMap<Entity, float[]>();
+    private static final Map<Entity, Float> BASE_STEP_HEIGHT = new WeakHashMap<Entity, Float>();
+    private static final Map<Entity, Float> APPLIED_STEP_SCALE = new WeakHashMap<Entity, Float>();
 
     private EntityScaleHooks() {}
 
@@ -33,6 +37,8 @@ public final class EntityScaleHooks {
         if (data == null) {
             return new float[] {width, height};
         }
+
+        refreshStepHeight(entity, data);
 
         float baseScale = safeScale(data.getScale(BASE));
         float widthScale = safeScale(data.getScale(WIDTH)) * safeScale(data.getScale(HITBOX_WIDTH)) * baseScale;
@@ -75,6 +81,29 @@ public final class EntityScaleHooks {
         } catch (ReflectiveOperationException exception) {
             throw new IllegalStateException("Unable to refresh entity dimensions", exception);
         }
+    }
+
+    /** Applies step-height scaling without accumulating the multiplier every tick. */
+    public static void refreshStepHeight(Entity entity, IScaleData data) {
+        float scale = safeScale(data.getScale(STEP_HEIGHT)) * safeScale(data.getScale(BASE));
+        synchronized (BASE_STEP_HEIGHT) {
+            if (!BASE_STEP_HEIGHT.containsKey(entity)) BASE_STEP_HEIGHT.put(entity, entity.stepHeight);
+        }
+        synchronized (APPLIED_STEP_SCALE) {
+            Float previous = APPLIED_STEP_SCALE.get(entity);
+            if (previous != null && Float.compare(previous, scale) == 0) return;
+            APPLIED_STEP_SCALE.put(entity, scale);
+        }
+        Float base;
+        synchronized (BASE_STEP_HEIGHT) { base = BASE_STEP_HEIGHT.get(entity); }
+        if (base != null) entity.stepHeight = base * scale;
+    }
+
+    /** Applies the jump-height factor to vanilla's base jump impulse. */
+    public static float transformJumpHeight(Entity entity, float jump) {
+        IScaleData data = ScaleDataCapability.get(entity);
+        return data == null ? jump : jump * safeScale(data.getScale(JUMP_HEIGHT))
+            * safeScale(data.getScale(BASE));
     }
 
     /** Applies the independent eye-height factor to vanilla's height-derived eye position. */
