@@ -10,20 +10,19 @@ public final class ScaleData implements IScaleData {
     private static final class Entry {
         float previous;
         float current;
+        float start;
         float target;
-        int remaining;
+        int elapsed;
         int duration;
 
         Entry(float value) {
-            previous = current = target = value;
+            previous = current = start = target = value;
         }
     }
 
     private final Map<ResourceLocation, Entry> scales = new LinkedHashMap<ResourceLocation, Entry>();
 
-    private ScaleType type(ResourceLocation id) {
-        return ScaleTypes.get(id);
-    }
+    private ScaleType type(ResourceLocation id) { return ScaleTypes.get(id); }
 
     private float defaultScale(ResourceLocation id) {
         ScaleType type = type(id);
@@ -40,9 +39,7 @@ public final class ScaleData implements IScaleData {
     }
 
     @Override
-    public float getScale(ResourceLocation id) {
-        return getScale(id, 1.0F);
-    }
+    public float getScale(ResourceLocation id) { return getScale(id, 1.0F); }
 
     @Override
     public float getScale(ResourceLocation id, float tickDelta) {
@@ -72,12 +69,11 @@ public final class ScaleData implements IScaleData {
         ScaleType type = type(id);
         float clamped = type == null ? Math.max(0.0001F, scale) : type.clamp(scale);
         Entry value = entry(id);
+        value.start = value.current;
         value.target = clamped;
+        value.elapsed = 0;
         value.duration = transitionTicks;
-        value.remaining = transitionTicks;
-        if (transitionTicks == 0) {
-            value.previous = value.current = clamped;
-        }
+        if (transitionTicks == 0) value.previous = value.current = clamped;
     }
 
     @Override
@@ -89,18 +85,12 @@ public final class ScaleData implements IScaleData {
     public void tick() {
         for (Entry value : scales.values()) {
             value.previous = value.current;
-            if (value.remaining > 0) {
-                value.remaining--;
-                float progress = value.duration == 0 ? 1.0F :
-                    1.0F - (float) value.remaining / (float) value.duration;
-                // Smoothstep easing avoids abrupt starts and stops.
+            if (value.elapsed < value.duration) {
+                value.elapsed++;
+                float progress = (float) value.elapsed / (float) value.duration;
                 progress = progress * progress * (3.0F - 2.0F * progress);
-                float start = value.current;
-                // Reconstruct the original start from the current point and remaining fraction.
-                // Linear interpolation is accumulated in small deterministic tick steps.
-                value.current += (value.target - value.current) /
-                    (float) Math.max(1, value.remaining + 1);
-                if (value.remaining == 0) value.current = value.target;
+                value.current = value.start + (value.target - value.start) * progress;
+                if (value.elapsed >= value.duration) value.current = value.target;
             }
         }
     }
@@ -114,8 +104,9 @@ public final class ScaleData implements IScaleData {
             NBTTagCompound data = new NBTTagCompound();
             data.setFloat("Previous", value.previous);
             data.setFloat("Current", value.current);
+            data.setFloat("Start", value.start);
             data.setFloat("Target", value.target);
-            data.setInteger("Remaining", value.remaining);
+            data.setInteger("Elapsed", value.elapsed);
             data.setInteger("Duration", value.duration);
             values.setTag(item.getKey().toString(), data);
         }
@@ -137,10 +128,13 @@ public final class ScaleData implements IScaleData {
                     Entry value = new Entry(fallback);
                     value.previous = readScale(data, "Previous", fallback, id);
                     value.current = readScale(data, "Current", fallback, id);
+                    value.start = readScale(data, "Start", value.current, id);
                     value.target = readScale(data, "Target", value.current, id);
-                    value.remaining = Math.max(0, data.getInteger("Remaining"));
-                    value.duration = Math.max(value.remaining, data.getInteger("Duration"));
-                    if (value.remaining == 0) value.previous = value.current = value.target;
+                    value.duration = Math.max(0, data.getInteger("Duration"));
+                    value.elapsed = Math.max(0, Math.min(value.duration, data.getInteger("Elapsed")));
+                    if (value.elapsed >= value.duration) {
+                        value.previous = value.current = value.start = value.target;
+                    }
                     scales.put(id, value);
                 } else {
                     // Read legacy saves written by the initial 1.12.2 port.
