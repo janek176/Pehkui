@@ -20,6 +20,7 @@ import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import virtuoel.pehkui.Pehkui;
 import virtuoel.pehkui.api.IScaleData;
 import virtuoel.pehkui.api.ScaleData;
+import virtuoel.pehkui.coremod.EntityScaleHooks;
 import virtuoel.pehkui.network.PehkuiNetwork;
 
 @Mod.EventBusSubscriber(modid = Pehkui.MOD_ID)
@@ -54,11 +55,17 @@ public final class ScaleDataCapability {
 
     @SubscribeEvent
     public static void worldTick(TickEvent.WorldTickEvent event) {
-        if (event.phase != TickEvent.Phase.END || event.world.isRemote) return;
+        if (event.phase != TickEvent.Phase.END) return;
+
         for (Entity entity : event.world.loadedEntityList) {
             IScaleData data = get(entity);
             if (data == null) continue;
+
             data.tick();
+            EntityScaleHooks.refresh(entity);
+
+            if (event.world.isRemote) continue;
+
             NBTTagCompound snapshot = data.serializeNBT();
             NBTTagCompound previous = LAST_SYNC.get(entity);
             if (!snapshot.equals(previous)) {
