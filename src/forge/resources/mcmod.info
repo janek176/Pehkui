@@ -1,0 +1,15 @@
+[
+  {
+    "modid": "pehkui",
+    "name": "Pehkui",
+    "description": "Entity scale API and implementation for Minecraft 1.12.2 Forge.",
+    "version": "${version}",
+    "mcversion": "1.12.2",
+    "url": "https://github.com/janek176/Pehkui",
+    "authorList": ["Virtuoel and contributors; 1.12.2 Forge port"],
+    "credits": "Based on the open-source Pehkui project.",
+    "logoFile": "",
+    "screenshots": [],
+    "dependencies": ["forge"]
+  }
+]
