@@ -1,7 +1,10 @@
 package virtuoel.pehkui.capability;
 
+import java.util.Map;
+import java.util.WeakHashMap;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.ResourceLocation;
@@ -17,10 +20,13 @@ import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import virtuoel.pehkui.Pehkui;
 import virtuoel.pehkui.api.IScaleData;
 import virtuoel.pehkui.api.ScaleData;
+import virtuoel.pehkui.network.PehkuiNetwork;
 
 @Mod.EventBusSubscriber(modid = Pehkui.MOD_ID)
 public final class ScaleDataCapability {
     private static final ResourceLocation KEY = new ResourceLocation(Pehkui.MOD_ID, "scale_data");
+    private static final Map<Entity, NBTTagCompound> LAST_SYNC =
+        new WeakHashMap<Entity, NBTTagCompound>();
 
     @CapabilityInject(IScaleData.class)
     public static Capability<IScaleData> CAPABILITY = null;
@@ -48,8 +54,28 @@ public final class ScaleDataCapability {
 
     @SubscribeEvent
     public static void livingUpdate(LivingEvent.LivingUpdateEvent event) {
-        IScaleData data = get(event.getEntityLiving());
-        if (data != null) data.tick();
+        Entity entity = event.getEntityLiving();
+        IScaleData data = get(entity);
+        if (data == null) return;
+        data.tick();
+        if (entity.world.isRemote) return;
+        NBTTagCompound snapshot = data.serializeNBT();
+        NBTTagCompound previous = LAST_SYNC.get(entity);
+        if (!snapshot.equals(previous)) {
+            LAST_SYNC.put(entity, snapshot.copy());
+            PehkuiNetwork.syncTracking(entity);
+            if (entity instanceof EntityPlayerMP) {
+                PehkuiNetwork.syncTo(entity, (EntityPlayerMP) entity);
+            }
+        }
+    }
+
+    @SubscribeEvent
+    public static void startTracking(PlayerEvent.StartTracking event) {
+        if (!event.getEntityPlayer().world.isRemote &&
+            event.getEntityPlayer() instanceof EntityPlayerMP) {
+            PehkuiNetwork.syncTo(event.getTarget(), (EntityPlayerMP) event.getEntityPlayer());
+        }
     }
 
     @SubscribeEvent
@@ -82,13 +108,9 @@ public final class ScaleDataCapability {
         }
 
         @Override
-        public NBTTagCompound serializeNBT() {
-            return instance.serializeNBT();
-        }
+        public NBTTagCompound serializeNBT() { return instance.serializeNBT(); }
 
         @Override
-        public void deserializeNBT(NBTTagCompound nbt) {
-            instance.deserializeNBT(nbt);
-        }
+        public void deserializeNBT(NBTTagCompound nbt) { instance.deserializeNBT(nbt); }
     }
 }
