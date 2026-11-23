@@ -38,6 +38,15 @@ sourceSets {
     }
 }
 
+jar {
+    manifest {
+        attributes(
+            'FMLCorePlugin': 'virtuoel.pehkui.coremod.PehkuiLoadingPlugin',
+            'FMLCorePluginContainsFMLMod': 'true'
+        )
+    }
+}
+
 processResources {
     inputs.property "version", project.version
     from(sourceSets.main.resources.srcDirs) {
