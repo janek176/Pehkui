@@ -63,7 +63,7 @@ public final class ScaleData implements IScaleData {
     @Override
     public void setScale(ResourceLocation id, float scale) {
         ScaleType type = type(id);
-        setScale(id, type == null ? Math.max(0.0001F, scale) : type.clamp(scale),
+        setScale(id, type == null ? sanitize(scale) : type.clamp(scale),
             type == null ? 0 : type.getTransitionTicks());
     }
 
@@ -72,7 +72,7 @@ public final class ScaleData implements IScaleData {
         if (id == null) throw new IllegalArgumentException("Scale type cannot be null");
         if (transitionTicks < 0) throw new IllegalArgumentException("Transition ticks cannot be negative");
         ScaleType type = type(id);
-        float clamped = type == null ? Math.max(0.0001F, scale) : type.clamp(scale);
+        float clamped = type == null ? sanitize(scale) : type.clamp(scale);
         Entry value = entry(id);
         value.start = value.current;
         value.target = clamped;
@@ -151,10 +151,14 @@ public final class ScaleData implements IScaleData {
         }
     }
 
+    private float sanitize(float value) {
+        return Float.isFinite(value) ? Math.max(0.0001F, value) : 1.0F;
+    }
+
     private float readScale(NBTTagCompound data, String key, float fallback, ResourceLocation id) {
         if (!data.hasKey(key, 99)) return fallback;
         ScaleType type = type(id);
         float value = data.getFloat(key);
-        return type == null ? Math.max(0.0001F, value) : type.clamp(value);
+        return type == null ? sanitize(value) : type.clamp(value);
     }
 }
